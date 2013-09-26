@@ -25,4 +25,4 @@ To run the solver:
 =======
 The solver accepts a series of parameters which can be displayed by typing:
 
--/probSAT -h
+./probSAT -h

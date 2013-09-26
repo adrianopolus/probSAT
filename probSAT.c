@@ -1,8 +1,8 @@
 /**
- * probSAT version SC13
+ * probSAT version SC13_v2
  * uses only break!
  * in case of 3-SAT implements pick and flip method without caching
- * * Author: Adrian Balint
+ * Author: Adrian Balint
  */
 
 #include <math.h>
@@ -343,7 +343,7 @@ inline void init() {
 	}
 }
 
-/** Checks wether the assignment from atom is a satisfying assignment.*/
+/** Checks whether the assignment from atom is a satisfying assignment.*/
 inline int checkAssignment() {
 	register int i, j;
 	int sat, lit;
