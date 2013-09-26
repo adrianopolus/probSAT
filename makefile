@@ -4,7 +4,7 @@ CFLAGS= -Wall -Wextra -static -O3 -funroll-loops -fexpensive-optimizations
 
 all: probSAT
 
-probSATsc13:	probSAT.c
+probSAT:	probSAT.c
 			$(CC) $(CFLAGS)  probSAT.c -lm -o probSAT
 clean:	
 		rm -f probSAT

@@ -362,7 +362,7 @@ inline int checkAssignment() {
 }
 
 //go trough the unsat clauses with the flip counter and DO NOT pick RANDOM unsat clause!!
-
+// do not cache the break values but compute them on the fly (this is also the default implementation of WalkSAT in UBCSAT)
 inline void pickAndFlipNC() {
 	register int i, j;
 	int bestVar;
