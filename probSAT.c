@@ -81,6 +81,8 @@ int fct = 0; //function to use 0= poly 1=exp
 /*----probSAT variables----*/
 int *candidateList; //list of variable that are candidates!
 int wp=567;
+int wp_spec=0;
+int walksat=0; //use walksat heuristic
 /*--------*/
 /*----Input file variables----*/
 FILE *fp;
@@ -128,6 +130,11 @@ void printProbs() {
 }
 
 void printSolverParameters() {
+	if (walksat){
+		printf("\nc walkSAT parameteres: \n");
+		printf("c %-20s: %6d\n", "wp", wp);
+	}
+	else{
 	printf("\nc probSAT parameteres: \n");
 	printf("c %-20s: %-20s\n", "using:", "only break");
 	if (fct == 0)
@@ -142,11 +149,13 @@ void printSolverParameters() {
 	} else { //exp
 		printf("c %-20s: %-20s\n", "function:", "probsBreak[break]*probsMake[make] = pow(cb, -break);");
 	}
-	if (caching)
-		printf("c %-20s: %-20s\n", "using:", "caching of break values");
-	else
-		printf("c %-20s: %-20s\n", "using:", "no caching of break values");
 	//printProbs();
+	}
+	if (caching)
+		printf("\nc %-20s: %-20s\n", "using:", "caching of break values");
+	else
+		printf("\nc %-20s: %-20s\n", "using:", "no caching of break values");
+
 	printf("\nc general parameteres: \n");
 	printf("c %-20s: %lli\n", "maxTries", maxTries);
 	printf("c %-20s: %lli\n", "maxFlips", maxFlips);
@@ -370,9 +379,9 @@ inline int checkAssignment() {
 inline void pickVarWalkSATC() {
 	register int i;
 	int numCandidates = 0;
-	int rClause;
-	rClause = falseClause[rand() % numFalse]; //random unsat clause
-	bestVar = abs(clause[rClause][0]);
+	int rClause = falseClause[rand() % numFalse]; //random unsat clause
+	//int rClause = falseClause[flip % numFalse]; //cyclic  unsat clause
+	//bestVar = abs(clause[rClause][0]);
 	int var;
 	int bestScore = numClauses, score;
 	i = 0;
@@ -397,6 +406,43 @@ inline void pickVarWalkSATC() {
 		bestVar = candidateList[0];
 }
 
+inline void pickVarWalkSATNC() {
+	register int i,j;
+	int numCandidates = 0;
+	int rClause = falseClause[rand() % numFalse]; //random unsat clause
+	//int rClause = falseClause[flip % numFalse]; //cyclic  unsat clause
+	//bestVar = abs(clause[rClause][0]);
+	int lit,tClause;
+	int bestScore = numClauses, score;
+	i = 0;
+	while ((lit = clause[rClause][i])) {
+			breaks[i] = 0;
+			j=0;
+			while ((tClause = occurrence[numVars - lit][j])){//only the negated occurrence of lit will count for break
+				if (numTrueLit[tClause] == 1)
+					breaks[i]++;
+			j++;
+			}
+		score = breaks[i];
+		if (score <= bestScore) {
+			if (score < bestScore) {
+				numCandidates = 0;
+				bestScore = score;
+			}
+			candidateList[numCandidates++] = abs(lit);
+		}
+		i++;
+	}
+	// if the best step is a worsening step, then with
+	 //probability (iWp) randomly choose the literal to flip
+	if ((bestScore > 0) && (wp > rand() % 1000))
+		bestVar = abs(clause[rClause][rand() % i]);
+	else if (numCandidates > 1)
+		bestVar = candidateList[rand() % numCandidates];
+	else
+		bestVar = candidateList[0];
+}
+
 //go trough the unsat clauses with the flip counter and DO NOT pick RANDOM unsat clause!!
 // do not cache the break values but compute them on the fly (this is also the default implementation of WalkSAT in UBCSAT)
 inline void pickVarNC() {
@@ -405,17 +451,17 @@ inline void pickVarNC() {
 	rClause = falseClause[flip % numFalse]; //random unsat clause
 	bestVar = abs(clause[rClause][0]);
 	double randPosition;
-	int lit, numOccurenceX;
+	int lit;
 	double sumProb = 0;
 	i = 0;
 	while ((lit = clause[rClause][i])) {
 		breaks[i] = 0;
 		//lit = clause[rClause][i];
-		numOccurenceX = numOccurrence[numVars - lit]; //only the negated occurrence of lit will count for break
-		for (j = 0; j < numOccurenceX; j++) {
-			tClause = occurrence[numVars - lit][j];
+		j=0;
+		while ((tClause = occurrence[numVars - lit][j])){//only the negated occurrence of lit will count for break
 			if (numTrueLit[tClause] == 1)
 				breaks[i]++;
+		j++;
 		}
 		probs[i] = probsBreak[breaks[i]];
 		sumProb += probs[i];
@@ -431,7 +477,7 @@ inline void pickVarNC() {
 }
 
 inline void flipVarNC(){
-	int numOccurenceX, xMakesSat = 0,i,tClause;
+	int xMakesSat = 0,i,tClause;
 	//flip bestvar
 	if (atom[bestVar])
 		xMakesSat = -bestVar; //if x=1 then all clauses containing -x will be made sat after fliping x
@@ -439,7 +485,7 @@ inline void flipVarNC(){
 		xMakesSat = bestVar; //if x=0 then all clauses containing x will be made sat after fliping x
 	atom[bestVar] = 1 - atom[bestVar];
 	//1. Clauses that contain xMakeSAT will get SAT if not already SAT
-	numOccurenceX = numOccurrence[numVars + xMakesSat];
+
 	i = 0;
 	while ((tClause = occurrence[xMakesSat + numVars][i])) {
 		//if the clause is unsat it will become SAT so it has to be removed from the list of unsat-clauses.
@@ -454,7 +500,7 @@ inline void flipVarNC(){
 	}
 	//2. all clauses that contain the literal -xMakesSat=0 will not be longer satisfied by variable x.
 	//all this clauses contained x as a satisfying literal
-	numOccurenceX = numOccurrence[numVars - xMakesSat];
+
 	i = 0;
 	while ((tClause = occurrence[numVars - xMakesSat][i])) {
 		if (numTrueLit[tClause] == 1) { //then xMakesSat=1 was the satisfying literal.
@@ -614,12 +660,12 @@ void initExp() {
 void parseParameters(int argc, char *argv[]) {
 	//define the argument parser
 	static struct option long_options[] =
-			{ { "fct", required_argument, 0, 'f' }, { "caching", required_argument, 0, 'c' }, { "eps", required_argument, 0, 'e' }, { "cb", required_argument, 0, 'b' }, { "runs", required_argument, 0, 't' }, { "maxflips", required_argument, 0, 'm' }, { "printSolution", no_argument, 0, 'a' }, { "help", no_argument, 0, 'h' }, { 0, 0, 0, 0 } };
+			{ { "fct", required_argument, 0, 'f' }, { "caching", required_argument, 0, 'c' }, { "eps", required_argument, 0, 'e' }, { "cb", required_argument, 0, 'b' }, { "wp", required_argument, 0, 'p' },{ "runs", required_argument, 0, 't' }, { "maxflips", required_argument, 0, 'm' }, { "printSolution", no_argument, 0, 'a' },{ "walksat", no_argument, 0, 'w' }, { "help", no_argument, 0, 'h' }, { 0, 0, 0, 0 } };
 
 	while (optind < argc) {
 		int index = -1;
 		struct option * opt = 0;
-		int result = getopt_long(argc, argv, "f:e:c:b:t:m:ah", long_options, &index); //
+		int result = getopt_long(argc, argv, "f:e:c:b:t:m:p:awh", long_options, &index); //
 		if (result == -1)
 			break; /* end of list */
 		switch (result) {
@@ -630,6 +676,12 @@ void parseParameters(int argc, char *argv[]) {
 		case 'c':
 			caching = atoi(optarg);
 			caching_spec = 1;
+			break;
+		case 'p':
+			wp = atoi(optarg);
+			break;
+		case 'w':
+			walksat = 1;
 			break;
 		case 'f':
 			fct = atoi(optarg);
@@ -703,6 +755,31 @@ void setupSignalHandler() {
 }
 
 void setupParameters() {
+	if (walksat){
+		if (!caching_spec) {
+				if (maxClauseSize <= 3){
+					pickVar = pickVarWalkSATNC; //no caching of the break values in case of 3SAT
+					flipVar = flipVarNC;
+					caching =0;
+				}
+				else{
+					pickVar = pickVarWalkSATC; //cache the break values for other k-SAT
+					flipVar = flipVarC;
+					caching = 1;
+				}
+			}
+			else{
+				if (caching){
+					pickVar = pickVarWalkSATC;
+					flipVar = flipVarC;
+					}
+				else{
+					pickVar = pickVarWalkSATNC;
+					flipVar = flipVarNC;
+				}
+			}
+	}
+	else{ //probsat
 	if (!caching_spec) {
 		if (maxClauseSize <= 3){
 			pickVar = pickVarNC; //no caching of the break values in case of 3SAT
@@ -749,6 +826,8 @@ void setupParameters() {
 		initLookUpTable = initPoly;
 	else
 		initLookUpTable = initExp;
+	initLookUpTable(); //Initialize the look up table
+	}
 }
 
 int main(int argc, char *argv[]) {
@@ -759,7 +838,6 @@ int main(int argc, char *argv[]) {
 	parseFile();
 	printFormulaProperties();
 	setupParameters(); //call only after parsing file!!!
-	initLookUpTable(); //Initialize the look up table
 	setupSignalHandler();
 	printSolverParameters();
 	srand(seed);
@@ -770,8 +848,7 @@ int main(int argc, char *argv[]) {
 		for (flip = 0; flip < maxFlips; flip++) {
 			if (numFalse == 0)
 				break;
-			//pickVar();
-			pickVarWalkSATC();
+			pickVar();
 			flipVar();
 			printStatsEndFlip(); //update bestNumFalse
 		}
