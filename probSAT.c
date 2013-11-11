@@ -37,7 +37,7 @@ int numClauses;
 /** The number of literals. */
 int numLiterals;
 /** The value of the variables. The numbering starts at 1 and the possible values are 0 or 1. */
-int *atom;
+char *atom;
 /** The clauses of the formula represented as: clause[clause_number][literal_number].
  * The clause and literal numbering start both at 1. literal and clause 0 0 is sentinel*/
 int **clause;
@@ -60,7 +60,7 @@ int *falseClause;
 /** whereFalse[i]=j tells that clause i is listed in falseClause at position j.  */
 int *whereFalse;
 /** The number of true literals in each clause. */
-int *numTrueLit;
+unsigned short *numTrueLit;
 /*the number of clauses the variable i will make unsat if flipped*/
 int *breaks;
 /** critVar[i]=j tells that for clause i the variable j is critically responsible for satisfying i.*/
@@ -175,7 +175,7 @@ inline void printStatsEndFlip() {
 inline void allocateMemory() {
 	// Allocating memory for the instance data (independent from the assignment).
 	numLiterals = numVars * 2;
-	atom = (int*) malloc(sizeof(int) * (numVars + 1));
+	atom = (char*) malloc(sizeof(char) * (numVars + 1));
 	clause = (int**) malloc(sizeof(int*) * (numClauses + 1));
 	numOccurrence = (int*) malloc(sizeof(int) * (numLiterals + 1));
 	occurrence = (int**) malloc(sizeof(int*) * (numLiterals + 1));
@@ -184,7 +184,7 @@ inline void allocateMemory() {
 	// Allocating memory for the assignment dependent data.
 	falseClause = (int*) malloc(sizeof(int) * (numClauses + 1));
 	whereFalse = (int*) malloc(sizeof(int) * (numClauses + 1));
-	numTrueLit = (int*) malloc(sizeof(int) * (numClauses + 1));
+	numTrueLit = (unsigned short*) malloc(sizeof(unsigned short) * (numClauses + 1));
 }
 
 inline void parseFile() {
@@ -370,18 +370,19 @@ inline void pickAndFlipNC() {
 	rClause = falseClause[flip % numFalse]; //random unsat clause
 	bestVar = abs(clause[rClause][0]);
 	double randPosition;
-	int lit, numOccurenceX;
+	int lit;
 	double sumProb = 0;
 	int xMakesSat = 0;
 	i = 0;
 	while ((lit = clause[rClause][i])) {
 		breaks[i] = 0;
 		//lit = clause[rClause][i];
-		numOccurenceX = numOccurrence[numVars - lit]; //only the negated occurrence of lit will count for break
-		for (j = 0; j < numOccurenceX; j++) {
-			tClause = occurrence[numVars - lit][j];
+		//numOccurenceX = numOccurrence[numVars - lit]; //only the negated occurrence of lit will count for break
+		j=0;
+		while ((tClause = occurrence[numVars - lit][j])){
 			if (numTrueLit[tClause] == 1)
 				breaks[i]++;
+			j++;
 		}
 		probs[i] = probsBreak[breaks[i]];
 		sumProb += probs[i];
@@ -402,7 +403,7 @@ inline void pickAndFlipNC() {
 		xMakesSat = bestVar; //if x=0 then all clauses containing x will be made sat after fliping x
 	atom[bestVar] = 1 - atom[bestVar];
 	//1. Clauses that contain xMakeSAT will get SAT if not already SAT
-	numOccurenceX = numOccurrence[numVars + xMakesSat];
+	//numOccurenceX = numOccurrence[numVars + xMakesSat];
 	i = 0;
 	while ((tClause = occurrence[xMakesSat + numVars][i])) {
 		//if the clause is unsat it will become SAT so it has to be removed from the list of unsat-clauses.
@@ -417,7 +418,7 @@ inline void pickAndFlipNC() {
 	}
 	//2. all clauses that contain the literal -xMakesSat=0 will not be longer satisfied by variable x.
 	//all this clauses contained x as a satisfying literal
-	numOccurenceX = numOccurrence[numVars - xMakesSat];
+	//numOccurenceX = numOccurrence[numVars - xMakesSat];
 	i = 0;
 	while ((tClause = occurrence[numVars - xMakesSat][i])) {
 		if (numTrueLit[tClause] == 1) { //then xMakesSat=1 was the satisfying literal.
