@@ -165,14 +165,14 @@ void printSolution() {
 
 }
 
-inline void printStatsEndFlip() {
+static inline void printStatsEndFlip() {
 	if (numFalse < bestNumFalse) {
 		//fprintf(stderr, "%8lli numFalse: %5d\n", flip, numFalse);
 		bestNumFalse = numFalse;
 	}
 }
 
-inline void allocateMemory() {
+static inline void allocateMemory() {
 	// Allocating memory for the instance data (independent from the assignment).
 	numLiterals = numVars * 2;
 	atom = (char*) malloc(sizeof(char) * (numVars + 1));
@@ -187,7 +187,7 @@ inline void allocateMemory() {
 	numTrueLit = (unsigned short*) malloc(sizeof(unsigned short) * (numClauses + 1));
 }
 
-inline void parseFile() {
+static inline void parseFile() {
 	register int i, j;
 	int lit, r;
 	int clauseSize;
@@ -305,7 +305,7 @@ inline void parseFile() {
 	fclose(fp);
 }
 
-inline void init() {
+static inline void init() {
 	ticks_per_second = sysconf(_SC_CLK_TCK);
 	register int i, j;
 	int critLit = 0, lit;
@@ -344,7 +344,7 @@ inline void init() {
 }
 
 /** Checks whether the assignment from atom is a satisfying assignment.*/
-inline int checkAssignment() {
+static inline int checkAssignment() {
 	register int i, j;
 	int sat, lit;
 	for (i = 1; i <= numClauses; i++) {
@@ -363,7 +363,7 @@ inline int checkAssignment() {
 
 //go trough the unsat clauses with the flip counter and DO NOT pick RANDOM unsat clause!!
 // do not cache the break values but compute them on the fly (this is also the default implementation of WalkSAT in UBCSAT)
-inline void pickAndFlipNC() {
+static inline void pickAndFlipNC() {
 	register int i, j;
 	int bestVar;
 	int rClause, tClause;
@@ -431,7 +431,7 @@ inline void pickAndFlipNC() {
 	}
 	//fliping done!
 }
-inline void pickAndFlip() {
+static inline void pickAndFlip() {
 	int var;
 	int rClause = falseClause[flip % numFalse];
 	double sumProb = 0.0;
@@ -523,7 +523,7 @@ double elapsed_seconds(void) {
 	return answer;
 }
 
-inline void printEndStatistics() {
+static inline void printEndStatistics() {
 	printf("\nc EndStatistics:\n");
 	printf("c %-30s: %-9lli\n", "numFlips", flip);
 	printf("c %-30s: %-8.2f\n", "avg. flips/variable", (double) flip / (double) numVars);
@@ -532,7 +532,7 @@ inline void printEndStatistics() {
 	printf("c %-30s: %-8.4f\n", "CPU Time", tryTime);
 }
 
-inline void printUsage() {
+static inline void printUsage() {
 	printf("\n----------------------------------------------------------\n");
 	printf("probSAT version SC13.2\n");
 	printf("Authors: Adrian Balint\n");
