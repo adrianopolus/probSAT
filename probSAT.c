@@ -287,6 +287,7 @@ static inline void parseFile() {
 
 	for (i = 0; i < numLiterals + 1; i++) {
 		occurrence[i] = (int*) malloc(sizeof(int) * (numOccurrenceT[i] + 1));
+		occurrence[i][numOccurrenceT[i]] = 0; //sentinal at the end!
 		if (numOccurrenceT[i] > maxNumOccurences)
 			maxNumOccurences = numOccurrenceT[i];
 	}
